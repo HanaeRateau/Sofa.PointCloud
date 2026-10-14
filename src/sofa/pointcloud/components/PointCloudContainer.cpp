@@ -40,23 +40,6 @@ void registerToFactory<sofa::pointcloud::components::PointCloudContainer>(sofa::
 
 }
 
-namespace sofa::core::objectmodel
-{
-
-/// Specialization for reading strings
-template<>
-bool Data<Eigen::MatrixXf>::read(const std::string& str) { return false; }
-
-/// Specialization for reading strings
-template<>
-std::string Data<Eigen::MatrixXf>::getValueString() const
-{
-    std::stringstream tmp;
-    tmp << "EigenMatrix(" << m_value.getValue().rows() << "," << m_value.getValue().cols() << ")";
-    return tmp.str();
-}
-
-}
 
 namespace sofa::pointcloud::components
 {
@@ -94,6 +77,8 @@ void loader(std::atomic<bool>& running, const std::string& name) {
         ++i;
     }
     std::cout << "\033[?25h"; // show
+
+    std::cout << std::endl;
 }
 
 void PointCloudContainer::init()
@@ -108,7 +93,6 @@ void PointCloudContainer::init()
 
     if(!d_filename.isSet() || d_filename.getValue() == ""){
         loadNaive();
-        return;
     } else  if( !load(d_filename.getValue()) ){
         d_componentState = core::objectmodel::ComponentState::Invalid;
         running = false;
@@ -139,29 +123,40 @@ void PointCloudContainer::updateBBox()
 
 void PointCloudContainer::loadNaive()
 {
+    msg_warning() << "Loading naively";
+
     int maxSplats = 100;
 
-    Eigen::MatrixXf gau_xyz(4, 3);  // Positions
-    Eigen::MatrixXf gau_rot(4, 4);  // Rotations
-    Eigen::MatrixXf gau_s(4, 3);    // Scales
-    Eigen::MatrixXf gau_c(4, 3);    // Colors
-    Eigen::MatrixXf gau_a(4, 1);    // Alpha ?
+    Eigen::MatrixXf gau_xyz(maxSplats, 3);  // Positions
+    Eigen::MatrixXf gau_rot(maxSplats, 4);  // Rotations
+    Eigen::MatrixXf gau_s(maxSplats, 3);    // Scales
+    Eigen::MatrixXf gau_c(maxSplats, 3);    // Colors
+    Eigen::MatrixXf gau_a(maxSplats, 1);    // Alpha ?
     for(int i = 0;i<maxSplats;i++)
     {
-        gau_xyz << cos(i), sin(i), 0;
-        gau_rot << 1, 0, 0, 0;
-        gau_s << 0.03, 0.03, 0.03;
-
-        gau_c << 1, 0, 1,
-            1, 0, 0,
-            0, 1, 0,
-            0, 0, 1;
-        gau_c = (gau_c.array() - 0.5f) / 0.28209f;
-
-        gau_a << 1, 1, 1, 1;
+        gau_xyz.row(i) << cos(i), sin(i), 0;
+        gau_rot.row(i) << 1, 0, 0, 0;
+        gau_s.row(i) << 0.03, 0.03, 0.03;
+        gau_c.row(i) << 1, 0, 1;
+        gau_a(i, 0) = 1;
     }
 
+    if (data) delete data;
     data = new GaussianData{ gau_xyz, gau_rot, gau_s, gau_a, gau_c };
+
+    d_positions.setValue(gau_xyz);
+    d_orientations.setValue(gau_rot);
+    d_scales.setValue(gau_s);
+    d_opacities.setValue(gau_a);
+    d_sphericalHarmonics.setValue(gau_c);
+
+    auto indices = helper::getWriteOnlyAccessor(d_indices);
+    indices.resize(maxSplats);
+    for (int i = 0;i < maxSplats;++i)
+    {
+        indices[i] = i;
+    }
+    msg_warning() << "Loaded naively";
 };
 
 bool PointCloudContainer::load(const std::string& filename, int max_sh_degree)
@@ -212,6 +207,7 @@ bool PointCloudContainer::load(const std::string& filename, int max_sh_degree)
     }
 
     file.read(ss);
+    ss.close();
 
     int N = x->count;
     auto load_vec = [](std::shared_ptr<PlyData>& pd, int N) -> Eigen::VectorXf {
