@@ -58,8 +58,6 @@ std::string Data<Eigen::MatrixXf>::getValueString() const
 
 }
 
-
-
 namespace sofa::pointcloud::components
 {
 
