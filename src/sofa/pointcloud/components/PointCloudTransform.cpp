@@ -158,6 +158,7 @@ void PointCloudTransform::update()
         auto scale = scales[frameIndex];
         auto T = Eigen::Translation<float,3>(center.x(), center.y(), center.z());
         auto R = Eigen::Quaternion<float>(orientation[3], orientation[0], orientation[1], orientation[2]);
+        R.normalize();
         auto S = Eigen::UniformScaling<float>(scale);
         auto RST = T*R*S;
         t_transforms[frameIndex] = RST;

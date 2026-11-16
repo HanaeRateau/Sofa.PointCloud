@@ -107,7 +107,7 @@ private:
                    Eigen::Matrix<float, Eigen::Dynamic, 4, Eigen::RowMajor> &dstOrientations,
                    Eigen::Matrix<float, Eigen::Dynamic, 3, Eigen::RowMajor> &scales, int offset);
 
-    void sort(const Eigen::Matrix4f& P,
+  /*  void sort(const Eigen::Matrix4f& P,
               const Eigen::MatrixXf& positions,
               std::vector<float>& depths,
               std::vector<int> &depth_indices);
@@ -115,6 +115,6 @@ private:
     void transform_and_sort(const Eigen::Matrix4f& P,
                             BaseGLBuffer* position,
                             BaseGLBuffer* depth,
-                            BaseGLBuffer* indices, int N);
+                            BaseGLBuffer* indices, int N);*/
 };
 }

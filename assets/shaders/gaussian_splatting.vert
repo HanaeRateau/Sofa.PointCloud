@@ -42,22 +42,20 @@ vec3 get_position(int offset)
 void main()
 {
     int splat_idx = index[gl_InstanceID];
+    splat_index = splat_idx;
 
     g_pos = vec4(get_position(splat_idx), 1.f);
     g_pos_view = viewmat * g_pos;
     g_pos_screen = projmat * g_pos_view;
-    g_pos_screen.xyz = g_pos_screen.xyz / g_pos_screen.w;
-    g_pos_screen.w = 1.f;
 
-    if (any(greaterThan(abs(g_pos_screen.xy), vec2(2.0))))
-      return;
+    // Guard against division by zero / behind-camera splats
+    if (g_pos_screen.w <= 0.0001f) {
+        g_pos_screen = vec4(0.0, 0.0, 2.0, 1.0); // Safely outside [-1, 1]
+    } else {
+        g_pos_screen.xyz /= g_pos_screen.w;
+        g_pos_screen.w = 1.f;
+    }
 
-    if(g_pos_screen.z < 0.5)
-      return;
-
-    if(g_pos_screen.z > 1.0)
-      return;
-
-    splat_index = splat_idx;
+    // Always write valid gl_Position (never early-return with uninitialized outputs!)
     gl_Position = g_pos_screen;
 }

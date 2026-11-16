@@ -45,7 +45,6 @@ namespace sofa::pointcloud::components
 
 PointCloudVisualModel::PointCloudVisualModel() :
       l_geometry(initLink("geometry", "link to the topology container"))
-    , d_indices(initData(&d_indices, "indices", " the indices in the geometry to display"))
     , d_frames(initData(&d_frames, "frames", " set of frame controlling the geometry"))
     , d_initFrames(initData(&d_initFrames, "initFrames", " initiale frames location/orientation, if empty, use frames as reference"))
     , d_frameIndices(initData(&d_frameIndices, "frameIndices", " the indice mapping each splats to a frame"))
@@ -122,7 +121,7 @@ void PointCloudVisualModel::initTransform()
         initFrames.clear();
         for(auto& frame : frames)
         {
-            initFrames.push_back(defaulttype::Rigid3Types::Coord{});
+            initFrames.push_back(frame);
         }
     }
 

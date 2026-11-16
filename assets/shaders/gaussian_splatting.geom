@@ -153,8 +153,10 @@ void main()
 
   // Invert covariance (EWA algorithm)
   float det = (cov2d.x * cov2d.z - cov2d.y * cov2d.y);
-  if (det == 0.0f)
+  if (det <= 0.0) {
+    gl_Position = vec4(0.0, 0.0, 2.0, 1.0); // Cull degenerate splat cleanly
     return;
+  }
 
   float det_inv = 1.f / det;
   conic = vec3(cov2d.z * det_inv, -cov2d.y * det_inv, cov2d.x * det_inv);

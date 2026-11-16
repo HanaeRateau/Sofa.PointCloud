@@ -49,7 +49,6 @@ public:
 
     Link<PointCloudContainer> l_geometry;
 
-    Data<type::vector<int>> d_indices;
     Data<type::vector<defaulttype::Rigid3Types::Coord>> d_frames;
     Data<type::vector<defaulttype::Rigid3Types::Coord>> d_initFrames;
     Data<type::vector<int>> d_frameIndices;

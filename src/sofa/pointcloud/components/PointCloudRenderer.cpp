@@ -206,7 +206,7 @@ void PointCloudRenderer::transform(float scale,
                                    Eigen::Matrix<float, Eigen::Dynamic, 3, Eigen::RowMajor>& dstPositions,
                                    const Eigen::Matrix<float, Eigen::Dynamic, 4, Eigen::RowMajor>& srcOrientations,
                                    Eigen::Matrix<float, Eigen::Dynamic, 4, Eigen::RowMajor>& dstOrientations,
-                                   Eigen::Matrix<float, Eigen::Dynamic, 3, Eigen::RowMajor>& scales, int offset)
+                                   Eigen::Matrix<float, Eigen::Dynamic, 3, Eigen::RowMajor>& scales, int vtxOffset)
 {
     for(size_t frameIndex=0;frameIndex<frameIndices.size();++frameIndex)
     {
@@ -217,23 +217,24 @@ void PointCloudRenderer::transform(float scale,
         auto T = Eigen::Translation<float,3>(frameCenter.x(), frameCenter.y(), frameCenter.z());
         auto Tinv = Eigen::Translation<float,3>(-frameInitCenter.x(), -frameInitCenter.y(), -frameInitCenter.z());
         auto R = Eigen::Quaternion<float>(frameOrientation[3], frameOrientation[0], frameOrientation[1], frameOrientation[2]);
+        R.normalize();
         auto S = Eigen::UniformScaling<float>(scale);
 
-        auto transform = T * R;
+        auto transform = T * R ; // concatenate translation and rotation
         for(size_t i=0;i<frameIndices[frameIndex].size(); ++i)
         {
             auto vtxIndex = frameIndices[frameIndex][i];
 
             Eigen::Vector3f worldPosition = srcPositions.row(vtxIndex).transpose();
-            dstPositions.row(vtxIndex+offset) = transform * (Tinv * worldPosition);
+            dstPositions.row(vtxIndex + vtxOffset) = transform * (Tinv * worldPosition);
 
             auto tmp = srcOrientations.row(vtxIndex);
             Eigen::Quaternionf worldOrientation = R * Eigen::Quaternionf{tmp(0), tmp(1), tmp(2), tmp(3)};
 
-            dstOrientations.row(vtxIndex+offset)(0) = (worldOrientation).w();
-            dstOrientations.row(vtxIndex+offset)(1) = (worldOrientation).x();
-            dstOrientations.row(vtxIndex+offset)(2) = (worldOrientation).y();
-            dstOrientations.row(vtxIndex+offset)(3) = (worldOrientation).z();
+            dstOrientations.row(vtxIndex+vtxOffset)(0) = (worldOrientation).w();
+            dstOrientations.row(vtxIndex+vtxOffset)(1) = (worldOrientation).x();
+            dstOrientations.row(vtxIndex+vtxOffset)(2) = (worldOrientation).y();
+            dstOrientations.row(vtxIndex+vtxOffset)(3) = (worldOrientation).z();
 
             //scales.row(vtxIndex) = scales.row(vtxIndex)*scale;
         }
@@ -352,7 +353,8 @@ void PointCloudRenderer::doDrawVisual(const sofa::core::visual::VisualParams* vp
             auto frames = helper::getReadAccessor(visual->d_frames);
             auto frameIndices = helper::getReadAccessor(visual->d_frameIndices);
 
-            if(!dataCache.contains(visual)){
+            if(!dataCache.contains(visual))
+            {
                 int offset = renderingData.xyz.rows();
                 int beginIndex = renderingData.size();
                 int size = visual->l_geometry->data->xyz.rows()*(3+4+3+1+visual->l_geometry->data->sh_dim());
@@ -379,7 +381,7 @@ void PointCloudRenderer::doDrawVisual(const sofa::core::visual::VisualParams* vp
                                 renderingData.scale, offset);
 
                 msg_info() << "Batching a new data set " << visual->getPathName() << " with frames " << frames.size() << msgendl
-                           << "         data set offset & size " << beginIndex << ", " << size;
+                           << "         data set vtxOffset & size " << beginIndex << ", " << size;
                 updatesBufferParts.push_back({offset,size});
                 continue;
             }
@@ -407,7 +409,7 @@ void PointCloudRenderer::doDrawVisual(const sofa::core::visual::VisualParams* vp
                                 renderingData.scale, offset);
             }
             msg_info() << "Updating point clouds from " << visual->getPathName() << " with frames " << frames.size() << msgendl
-                       << "         data set offset & size " << offset << ", " << size;
+                       << "         data set vtxOffset & size " << offset << ", " << size;
             updatesBufferParts.push_back({offset,size});
         }
     }
@@ -462,6 +464,7 @@ void PointCloudRenderer::doDrawVisual(const sofa::core::visual::VisualParams* vp
     glDisable(GL_CULL_FACE);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDepthMask(GL_FALSE);
 
     static bool firstTime = true;
     if(firstTime)
@@ -541,6 +544,7 @@ void PointCloudRenderer::doDrawVisual(const sofa::core::visual::VisualParams* vp
                     }
                 }
             }
+
             PointCloudRendererBackend::transform_and_sort_cpu(viewmat, renderingData.xyz,
                                                               depths, selectedIndices);
 
@@ -567,6 +571,7 @@ void PointCloudRenderer::doDrawVisual(const sofa::core::visual::VisualParams* vp
     shader.TurnOff();
 
     glEnable(GL_CULL_FACE);
+    glDepthMask(GL_TRUE);
 
     vparams->drawTool()->popMatrix();
 }
